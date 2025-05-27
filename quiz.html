@@ -1,142 +1,320 @@
-import streamlit as st
-import random
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>語尾で品詞クイズ</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .quiz-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #1E90FF; /* Streamlitの青っぽい色 */
+            font-size: 2.5em;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        .question-info {
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .options button {
+            background-color: #007bff; /* プライマリボタンの色 */
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+            width: calc(50% - 10px); /* 2列表示 */
+        }
+        .options button:hover {
+            background-color: #0056b3;
+        }
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 1.1em;
+        }
+        .feedback.correct {
+            background-color: #d4edda; /* Streamlitのsuccess色 */
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .feedback.incorrect {
+            background-color: #f8d7da; /* Streamlitのerror色 */
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .examples, .note {
+            text-align: left;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9ecef; /* Streamlitのinfo色 */
+            border-radius: 5px;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .examples ul {
+            list-style-type: "- ";
+            padding-left: 20px;
+            margin: 0;
+        }
+        .next-button, .retry-button {
+            background-color: #28a745; /* 緑色 */
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            margin-top: 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            width: 100%;
+        }
+        .next-button:hover, .retry-button:hover {
+            background-color: #1e7e34;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ddd;
+            margin: 20px 0;
+        }
+        .score-display {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+        /* スマホ向けにボタンの横幅調整 */
+        @media (max-width: 480px) {
+            .options button {
+                width: 100%; /* 1列表示 */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <h1>🔎 語尾で品詞クイズ</h1>
+        <p>表示された語尾が、主にどの品詞で使われるかを選んでください。</p>
+        <hr>
 
-# 語尾データ (画像から抽出)
-# 各エントリ: {"suffix": "語尾", "pos": "品詞", "examples": ["単語例1 (意味)", "単語例2 (意味)"], "note": "補足情報（あれば）"}
-suffix_data_list = [
-    # 名詞の語尾
-    {"suffix": "-ance", "pos": "名詞", "examples": ["performance (公演)", "maintenance (保守点検)", "distance (距離)"], "note": None},
-    {"suffix": "-cy", "pos": "名詞", "examples": ["policy (方針)", "emergency (緊急事態)", "agency (代理店)"], "note": None},
-    {"suffix": "-sion", "pos": "名詞", "examples": ["decision (決定)", "extension (内線)", "permission (許可)"], "note": None},
-    {"suffix": "-tion", "pos": "名詞", "examples": ["position (職)", "presentation (プレゼンテーション)", "information (情報)"], "note": None},
-    {"suffix": "-ty", "pos": "名詞", "examples": ["community (共同体)", "facility (施設)", "opportunity (機会)"], "note": None},
-    {"suffix": "-ness", "pos": "名詞", "examples": ["business (会社)", "effectiveness (効果)", "fitness (健康)"], "note": None},
-    {"suffix": "-ment", "pos": "名詞", "examples": ["document (書類)", "department (部)", "management (経営)"], "note": None},
-    {"suffix": "-sis", "pos": "名詞", "examples": ["analysis (分析)", "emphasis (強調)", "basis (基盤)"], "note": None},
-    {"suffix": "-ee", "pos": "名詞", "examples": ["employee (従業員)", "trainee (研修生)"], "note": None},
-    # 動詞の語尾
-    {"suffix": "-fy", "pos": "動詞", "examples": ["identify (〜を明らかにする)", "notify (〜を知らせる)", "modify (〜を変更する)"], "note": None},
-    {"suffix": "-ize/-ise", "pos": "動詞", "examples": ["realize (〜を認識する)", "organize (〜を準備する)", "specialize (専門にする)"], "note": "※ -ise の綴りも同意 (例: organise)"},
-    {"suffix": "-en", "pos": "動詞", "examples": ["broaden (〜を広げる)", "widen (〜を広げる)", "sharpen (〜を研ぐ)"], "note": "形容詞などから動詞を作る働きがあります。"},
-    {"suffix": "-ate", "pos": "動詞", "examples": ["create (〜を創造する)", "indicate (〜を示す)", "donate (〜を寄付する)"], "note": "形容詞の語尾にもなることがあります (例: considerate)。"},
-    # 形容詞の語尾
-    {"suffix": "-ous", "pos": "形容詞", "examples": ["delicious (おいしい)", "serious (本気の)", "previous (以前の)"], "note": None},
-    {"suffix": "-ble", "pos": "形容詞", "examples": ["available (手に入る)", "possible (可能な)", "reasonable (手ごろな)"], "note": None},
-    {"suffix": "-ful", "pos": "形容詞", "examples": ["successful (成功している)", "careful (慎重な)", "useful (役に立つ)"], "note": None},
-    {"suffix": "-cal", "pos": "形容詞", "examples": ["local (地元の)", "historical (歴史的な)", "economical (経済的な)"], "note": None},
-    {"suffix": "-cial", "pos": "形容詞", "examples": ["financial (財政の)", "special (特別な)", "official (公式な)"], "note": None},
-    {"suffix": "-nal", "pos": "形容詞", "examples": ["international (国際的な)", "additional (追加の)", "personal (個人的な)"], "note": None},
-    {"suffix": "-ive", "pos": "形容詞", "examples": ["expensive (値段が高い)", "effective (効果的な)", "competitive (競争力のある)"], "note": None},
-    # 副詞の語尾
-    {"suffix": "-ly", "pos": "副詞", "examples": ["usually (普通は)", "recently (最近)", "frequently (頻繁に)"], "note": "【要注意】名詞に -ly がつくと形容詞になるものがあります (例: friendly, costly, timely, daily)。"},
-    # -ly が形容詞になるケースも個別に追加 (クイズのバリエーションとして)
-    {"suffix": "-ly (例外)", "pos": "形容詞", "examples": ["friendly (親切な)", "costly (費用のかかる)", "orderly (整然とした)", "timely (タイミングのいい)", "daily (毎日の)"], "note": "これらは名詞に -ly がついて形容詞になった例です。"},
-]
+        <div id="question-area">
+            <p class="question-info" id="question-count"></p>
+            <h2 id="suffix-display"></h2>
+            <p id="suffix-note-display" style="text-align: center; color: #FF6347;"></p>
+            <hr>
+            <div class="options" id="options-buttons">
+                <!-- ボタンはJavaScriptで生成 -->
+            </div>
+        </div>
 
-# セッションステートの初期化関数
-def initialize_session_state():
-    if "suffix_list" not in st.session_state:
-        st.session_state.suffix_list = random.sample(suffix_data_list, len(suffix_data_list))
-    if "current_suffix_index" not in st.session_state:
-        st.session_state.current_suffix_index = 0
-    if "suffix_score" not in st.session_state:
-        st.session_state.suffix_score = 0
-    if "suffix_answered" not in st.session_state:
-        st.session_state.suffix_answered = False
-    if "suffix_user_choice" not in st.session_state:
-        st.session_state.suffix_user_choice = None
-    if "suffix_show_feedback" not in st.session_state:
-        st.session_state.suffix_show_feedback = False
+        <div id="feedback-area" class="feedback" style="display:none;">
+            <p id="feedback-text"></p>
+            <div id="examples-container" class="examples" style="display:none;">
+                <strong>単語例:</strong>
+                <ul id="example-list"></ul>
+            </div>
+            <div id="note-container" class="note" style="display:none;">
+                📝 <strong>補足:</strong> <span id="note-text"></span>
+            </div>
+        </div>
 
-# 回答を処理する関数
-def handle_suffix_answer(choice, correct_pos):
-    st.session_state.suffix_answered = True
-    st.session_state.suffix_user_choice = choice
-    st.session_state.suffix_show_feedback = True
-    if choice == correct_pos:
-        st.session_state.suffix_score += 1
+        <button id="next-question-button" class="next-button" style="display:none;">次の問題へ</button>
 
-# 次の問題へ進む関数
-def next_suffix_question():
-    st.session_state.current_suffix_index += 1
-    st.session_state.suffix_answered = False
-    st.session_state.suffix_user_choice = None
-    st.session_state.suffix_show_feedback = False
+        <div id="results-area" style="display:none;">
+            <h2>🎉 クイズ終了！ 🎉</h2>
+            <h3>あなたの成績:</h3>
+            <p class="score-display" id="final-score"></p>
+            <p class="score-display" id="total-questions"></p>
+            <p class="score-display" id="accuracy"></p>
+            <hr>
+            <button id="retry-quiz-button" class="retry-button">もう一度挑戦する</button>
+        </div>
+    </div>
 
-# --- アプリのメイン部分 ---
-def main():
-    st.set_page_config(page_title="語尾で品詞クイズ", layout="centered")
-    st.title("🔎 語尾で品詞クイズ")
-    st.markdown("表示された語尾が、主にどの品詞で使われるかを選んでください。")
-    st.divider()
+    <script>
+        const suffixDataList = [
+            // 名詞の語尾
+            {"suffix": "-ance", "pos": "名詞", "examples": ["performance (公演)", "maintenance (保守点検)", "distance (距離)"], "note": null},
+            {"suffix": "-cy", "pos": "名詞", "examples": ["policy (方針)", "emergency (緊急事態)", "agency (代理店)"], "note": null},
+            {"suffix": "-sion", "pos": "名詞", "examples": ["decision (決定)", "extension (内線)", "permission (許可)"], "note": null},
+            {"suffix": "-tion", "pos": "名詞", "examples": ["position (職)", "presentation (プレゼンテーション)", "information (情報)"], "note": null},
+            {"suffix": "-ty", "pos": "名詞", "examples": ["community (共同体)", "facility (施設)", "opportunity (機会)"], "note": null},
+            {"suffix": "-ness", "pos": "名詞", "examples": ["business (会社)", "effectiveness (効果)", "fitness (健康)"], "note": null},
+            {"suffix": "-ment", "pos": "名詞", "examples": ["document (書類)", "department (部)", "management (経営)"], "note": null},
+            {"suffix": "-sis", "pos": "名詞", "examples": ["analysis (分析)", "emphasis (強調)", "basis (基盤)"], "note": null},
+            {"suffix": "-ee", "pos": "名詞", "examples": ["employee (従業員)", "trainee (研修生)"], "note": null},
+            // 動詞の語尾
+            {"suffix": "-fy", "pos": "動詞", "examples": ["identify (〜を明らかにする)", "notify (〜を知らせる)", "modify (〜を変更する)"], "note": null},
+            {"suffix": "-ize/-ise", "pos": "動詞", "examples": ["realize (〜を認識する)", "organize (〜を準備する)", "specialize (専門にする)"], "note": "※ -ise の綴りも同意 (例: organise)"},
+            {"suffix": "-en", "pos": "動詞", "examples": ["broaden (〜を広げる)", "widen (〜を広げる)", "sharpen (〜を研ぐ)"], "note": "形容詞などから動詞を作る働きがあります。"},
+            {"suffix": "-ate", "pos": "動詞", "examples": ["create (〜を創造する)", "indicate (〜を示す)", "donate (〜を寄付する)"], "note": "形容詞の語尾にもなることがあります (例: considerate)。"},
+            // 形容詞の語尾
+            {"suffix": "-ous", "pos": "形容詞", "examples": ["delicious (おいしい)", "serious (本気の)", "previous (以前の)"], "note": null},
+            {"suffix": "-ble", "pos": "形容詞", "examples": ["available (手に入る)", "possible (可能な)", "reasonable (手ごろな)"], "note": null},
+            {"suffix": "-ful", "pos": "形容詞", "examples": ["successful (成功している)", "careful (慎重な)", "useful (役に立つ)"], "note": null},
+            {"suffix": "-cal", "pos": "形容詞", "examples": ["local (地元の)", "historical (歴史的な)", "economical (経済的な)"], "note": null},
+            {"suffix": "-cial", "pos": "形容詞", "examples": ["financial (財政の)", "special (特別な)", "official (公式な)"], "note": null},
+            {"suffix": "-nal", "pos": "形容詞", "examples": ["international (国際的な)", "additional (追加の)", "personal (個人的な)"], "note": null},
+            {"suffix": "-ive", "pos": "形容詞", "examples": ["expensive (値段が高い)", "effective (効果的な)", "competitive (競争力のある)"], "note": null},
+            // 副詞の語尾
+            {"suffix": "-ly", "pos": "副詞", "examples": ["usually (普通は)", "recently (最近)", "frequently (頻繁に)"], "note": "【要注意】名詞に -ly がつくと形容詞になるものがあります (例: friendly, costly, timely, daily)。"},
+            // -ly が形容詞になるケースも個別に追加
+            {"suffix": "-ly (例外)", "pos": "形容詞", "examples": ["friendly (親切な)", "costly (費用のかかる)", "orderly (整然とした)", "timely (タイミングのいい)", "daily (毎日の)"], "note": "これらは名詞に -ly がついて形容詞になった例です。"},
+        ];
 
-    initialize_session_state()
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let shuffledSuffixList = [];
 
-    suffix_list = st.session_state.suffix_list
-    current_index = st.session_state.current_suffix_index
+        const questionCountEl = document.getElementById('question-count');
+        const suffixDisplayEl = document.getElementById('suffix-display');
+        const suffixNoteDisplayEl = document.getElementById('suffix-note-display');
+        const optionsButtonsEl = document.getElementById('options-buttons');
+        const feedbackAreaEl = document.getElementById('feedback-area');
+        const feedbackTextEl = document.getElementById('feedback-text');
+        const examplesContainerEl = document.getElementById('examples-container');
+        const exampleListEl = document.getElementById('example-list');
+        const noteContainerEl = document.getElementById('note-container');
+        const noteTextEl = document.getElementById('note-text');
+        const nextQuestionButtonEl = document.getElementById('next-question-button');
+        const questionAreaEl = document.getElementById('question-area');
+        const resultsAreaEl = document.getElementById('results-area');
+        const finalScoreEl = document.getElementById('final-score');
+        const totalQuestionsEl = document.getElementById('total-questions');
+        const accuracyEl = document.getElementById('accuracy');
+        const retryQuizButtonEl = document.getElementById('retry-quiz-button');
 
-    if current_index < len(suffix_list):
-        question_data = suffix_list[current_index]
-        suffix_to_guess = question_data["suffix"]
-        correct_pos = question_data["pos"]
-        example_words = question_data["examples"]
-        note_text = question_data["note"]
+        const posOptions = ["名詞", "動詞", "形容詞", "副詞"];
 
-        st.subheader(f"問題 {current_index + 1} / {len(suffix_list)}")
-        # 語尾を大きく表示
-        if suffix_to_guess == "-ly (例外)":
-            st.markdown(f"<h2 style='text-align: center; color: #FF6347;'>-ly</h2>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center;'>※ ただし、これが形容詞になる場合の例です。</p>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<h2 style='text-align: center; color: #1E90FF;'>{suffix_to_guess}</h2>", unsafe_allow_html=True)
-        st.markdown("---")
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
 
-        # 品詞の選択肢
-        pos_options = ["名詞", "動詞", "形容詞", "副詞"]
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            shuffledSuffixList = shuffleArray([...suffixDataList]);
+            questionAreaEl.style.display = 'block';
+            resultsAreaEl.style.display = 'none';
+            nextQuestionButtonEl.style.display = 'none';
+            feedbackAreaEl.style.display = 'none';
+            displayQuestion();
+        }
 
-        if not st.session_state.suffix_show_feedback:
-            cols = st.columns(len(pos_options))
-            for i, option in enumerate(pos_options):
-                with cols[i]:
-                    if st.button(option, key=f"pos_button_{option}_{current_index}", use_container_width=True, type="primary"):
-                        handle_suffix_answer(option, correct_pos)
-                        st.rerun()
+        function displayQuestion() {
+            if (currentQuestionIndex < shuffledSuffixList.length) {
+                const questionData = shuffledSuffixList[currentQuestionIndex];
+                questionCountEl.textContent = `問題 ${currentQuestionIndex + 1} / ${shuffledSuffixList.length}`;
+                suffixNoteDisplayEl.textContent = ''; // リセット
 
-        if st.session_state.suffix_show_feedback:
-            user_choice = st.session_state.suffix_user_choice
-            if user_choice == correct_pos:
-                st.success(f"正解！ 🎉 「{suffix_to_guess}」は主に **{correct_pos}** の語尾です。")
-            else:
-                st.error(f"残念！ 「{suffix_to_guess}」の主な品詞は **{correct_pos}** でした。(あなたの回答: {user_choice})")
+                if (questionData.suffix === "-ly (例外)") {
+                    suffixDisplayEl.textContent = "-ly";
+                    suffixNoteDisplayEl.textContent = "※ ただし、これが形容詞になる場合の例です。";
+                } else {
+                    suffixDisplayEl.textContent = questionData.suffix;
+                }
 
-            st.markdown("**単語例:**")
-            for ex in example_words:
-                st.markdown(f"- {ex}")
+                optionsButtonsEl.innerHTML = ''; // 既存のボタンをクリア
+                posOptions.forEach(option => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    button.onclick = () => handleAnswer(option, questionData.pos, questionData.examples, questionData.note);
+                    optionsButtonsEl.appendChild(button);
+                });
+                feedbackAreaEl.style.display = 'none';
+                nextQuestionButtonEl.style.display = 'none';
+            } else {
+                displayResults();
+            }
+        }
 
-            if note_text:
-                st.info(f"📝 **補足:** {note_text}")
-            st.markdown("---")
+        function handleAnswer(userChoice, correctPos, examples, note) {
+            optionsButtonsEl.querySelectorAll('button').forEach(button => button.disabled = true); // ボタンを無効化
 
-            if st.button("次の問題へ", key=f"next_suffix_button_{current_index}", use_container_width=True):
-                next_suffix_question()
-                st.rerun()
+            feedbackAreaEl.style.display = 'block';
+            if (userChoice === correctPos) {
+                feedbackTextEl.textContent = `正解！ 🎉 「${shuffledSuffixList[currentQuestionIndex].suffix}」は主に ${correctPos} の語尾です。`;
+                feedbackAreaEl.className = 'feedback correct';
+                score++;
+            } else {
+                feedbackTextEl.textContent = `残念！ 「${shuffledSuffixList[currentQuestionIndex].suffix}」の主な品詞は ${correctPos} でした。(あなたの回答: ${userChoice})`;
+                feedbackAreaEl.className = 'feedback incorrect';
+            }
 
-    else: # 全問終了
-        st.balloons()
-        st.header("🎉 クイズ終了！ 🎉")
-        st.subheader("あなたの成績:")
-        accuracy = (st.session_state.suffix_score / len(suffix_list)) * 100 if len(suffix_list) > 0 else 0
-        st.markdown(f"**📖 総問題数:** {len(suffix_list)}")
-        st.markdown(f"**✅ 正解数:** {st.session_state.suffix_score}")
-        st.markdown(f"**🎯 正答率:** {accuracy:.2f}%")
-        st.divider()
+            if (examples && examples.length > 0) {
+                exampleListEl.innerHTML = '';
+                examples.forEach(ex => {
+                    const li = document.createElement('li');
+                    li.textContent = ex;
+                    exampleListEl.appendChild(li);
+                });
+                examplesContainerEl.style.display = 'block';
+            } else {
+                examplesContainerEl.style.display = 'none';
+            }
 
-        if st.button("もう一度挑戦する", use_container_width=True, type="primary"):
-            # セッションステートをリセットして再開
-            keys_to_delete = [key for key in st.session_state.keys() if key.startswith("suffix_") or key == "current_suffix_index"]
-            for key in keys_to_delete:
-                del st.session_state[key]
-            st.rerun()
+            if (note) {
+                noteTextEl.textContent = note;
+                noteContainerEl.style.display = 'block';
+            } else {
+                noteContainerEl.style.display = 'none';
+            }
 
-if __name__ == "__main__":
-    main()
+            nextQuestionButtonEl.style.display = 'block';
+        }
+
+        function displayNextQuestion() {
+            currentQuestionIndex++;
+            optionsButtonsEl.querySelectorAll('button').forEach(button => button.disabled = false); // ボタンを有効化
+            displayQuestion();
+        }
+
+        function displayResults() {
+            questionAreaEl.style.display = 'none';
+            feedbackAreaEl.style.display = 'none';
+            nextQuestionButtonEl.style.display = 'none';
+            resultsAreaEl.style.display = 'block';
+
+            finalScoreEl.textContent = `✅ 正解数: ${score}`;
+            totalQuestionsEl.textContent = `📖 総問題数: ${shuffledSuffixList.length}`;
+            const accuracyPercentage = shuffledSuffixList.length > 0 ? (score / shuffledSuffixList.length) * 100 : 0;
+            accuracyEl.textContent = `🎯 正答率: ${accuracyPercentage.toFixed(2)}%`;
+        }
+
+        nextQuestionButtonEl.addEventListener('click', displayNextQuestion);
+        retryQuizButtonEl.addEventListener('click', startQuiz);
+
+        // クイズを開始
+        startQuiz();
+    </script>
+</body>
+</html>
